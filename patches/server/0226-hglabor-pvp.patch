@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: copyandexecute <58366920+copyandexecute@users.noreply.github.com>
+Date: Tue, 13 Jul 2021 08:25:40 +0200
+Subject: [PATCH] hglabor-pvp
+
+
+diff --git a/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java b/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
+index 356a6118f1b0b091f7527aec747659025562eafc..d2eb85ddcc2d6fa7b7f8e431522587841eac8801 100644
+--- a/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
++++ b/src/main/java/com/tuinity/tuinity/config/TuinityConfig.java
+@@ -130,6 +130,18 @@ public final class TuinityConfig {
+         playerFrustumPrioritisation = TuinityConfig.getBoolean("player-chunks.enable-frustum-priority", false);
+     }
+ 
++    // Broken - Start
++    public static boolean disableSweeping;
++    public static boolean disableNewHitSounds;
++    public static String oldKnockbackKey;
++
++    private static void pvpSettings() {
++        disableSweeping = TuinityConfig.getBoolean("pvp.disable-sweeping", disableSweeping);
++        disableNewHitSounds = TuinityConfig.getBoolean("pvp.disable-new-hit-sounds", disableNewHitSounds);
++        oldKnockbackKey = TuinityConfig.getString("pvp.old-knockback-key", "oldKnockback");
++    }
++    // Broken - End
++
+     public static final class PacketLimit {
+         public final double packetLimitInterval;
+         public final double maxPacketRate;
+diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
+index 8e85b828b4b73cd4ec321ba5bd85187a5d19134a..9e69802926cdf559d276e8a9c671da832978d163 100644
+--- a/src/main/java/net/minecraft/world/entity/player/Player.java
++++ b/src/main/java/net/minecraft/world/entity/player/Player.java
+@@ -1210,7 +1210,8 @@ public abstract class Player extends LivingEntity {
+                     int i = b0 + EnchantmentHelper.getKnockbackBonus((LivingEntity) this);
+ 
+                     if (this.isSprinting() && flag) {
+-                        sendSoundEffect(this, this.getX(), this.getY(), this.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, this.getSoundSource(), 1.0F, 1.0F); // Paper - send while respecting visibility
++                        if (!com.tuinity.tuinity.config.TuinityConfig.disableNewHitSounds)
++                            sendSoundEffect(this, this.getX(), this.getY(), this.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, this.getSoundSource(), 1.0F, 1.0F); // Paper - send while respecting visibility
+                         ++i;
+                         flag1 = true;
+                     }
+@@ -1227,7 +1228,7 @@ public abstract class Player extends LivingEntity {
+                     boolean flag3 = false;
+                     double d0 = (double) (this.walkDist - this.walkDistO);
+ 
+-                    if (flag && !flag2 && !flag1 && this.onGround && d0 < (double) this.getSpeed()) {
++                    if (!com.tuinity.tuinity.config.TuinityConfig.disableSweeping && flag && !flag2 && !flag1 && this.onGround && d0 < (double) this.getSpeed()) {
+                         ItemStack itemstack = this.getItemInHand(InteractionHand.MAIN_HAND);
+ 
+                         if (itemstack.getItem() instanceof SwordItem) {
+@@ -1259,11 +1260,20 @@ public abstract class Player extends LivingEntity {
+ 
+                     if (flag5) {
+                         if (i > 0) {
+-                            if (target instanceof LivingEntity) {
+-                                ((LivingEntity) target).knockback((double) ((float) i * 0.5F), (double) Mth.sin(this.getYRot() * 0.017453292F), (double) (-Mth.cos(this.getYRot() * 0.017453292F)), this); // Paper
+-                            } else {
++
++                            // Broken - Start
++                            if (this.getBukkitEntity().hasMetadata(com.tuinity.tuinity.config.TuinityConfig.oldKnockbackKey) &&
++                                    target.getBukkitEntity().hasMetadata(com.tuinity.tuinity.config.TuinityConfig.oldKnockbackKey)
++                            ) {
+                                 target.push((double) (-Mth.sin(this.getYRot() * 0.017453292F) * (float) i * 0.5F), 0.1D, (double) (Mth.cos(this.getYRot() * 0.017453292F) * (float) i * 0.5F));
++                            } else {
++                                if (target instanceof LivingEntity) {
++                                    ((LivingEntity) target).knockback((double) ((float) i * 0.5F), (double) Mth.sin(this.getYRot() * 0.017453292F), (double) (-Mth.cos(this.getYRot() * 0.017453292F)), this); // Paper
++                                } else {
++                                    target.push((double) (-Mth.sin(this.getYRot() * 0.017453292F) * (float) i * 0.5F), 0.1D, (double) (Mth.cos(this.getYRot() * 0.017453292F) * (float) i * 0.5F));
++                                }
+                             }
++                            // Broken - End
+ 
+                             this.setDeltaMovement(this.getDeltaMovement().multiply(0.6D, 1.0D, 0.6D));
+                             // Paper start - Configuration option to disable automatic sprint interruption
+@@ -1378,7 +1388,8 @@ public abstract class Player extends LivingEntity {
+ 
+                         this.applyExhaustion(level.spigotConfig.combatExhaustion, EntityExhaustionEvent.ExhaustionReason.ATTACK); // CraftBukkit - EntityExhaustionEvent // Spigot - Change to use configurable value
+                     } else {
+-                        sendSoundEffect(this, this.getX(), this.getY(), this.getZ(), SoundEvents.PLAYER_ATTACK_NODAMAGE, this.getSoundSource(), 1.0F, 1.0F); // Paper - send while respecting visibility
++                        if (!com.tuinity.tuinity.config.TuinityConfig.disableNewHitSounds)
++                            sendSoundEffect(this, this.getX(), this.getY(), this.getZ(), SoundEvents.PLAYER_ATTACK_NODAMAGE, this.getSoundSource(), 1.0F, 1.0F); // Paper - send while respecting visibility
+                         if (flag4) {
+                             target.clearFire();
+                         }
